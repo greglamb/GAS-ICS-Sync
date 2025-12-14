@@ -6,13 +6,11 @@
 * 1) Make a copy:
 *      New Interface: Go to the project overview icon on the left (looks like this: ⓘ), then click the "copy" icon on the top right (looks like two files on top of each other)
 *      Old Interface: Click in the menu "File" > "Make a copy..." and make a copy to your Google Drive
-* 2) Settings: Change lines 24-50 to be the settings that you want to use
+* 2) Settings: Change lines 24-53 to be the settings that you want to use
 * 3) Install:
 *      New Interface: Make sure your toolbar says "install" to the right of "Debug", then click "Run"
 *      Old Interface: Click "Run" > "Run function" > "install"
-* 4) Authorize: You will be prompted to authorize the program and will need to click "Advanced" > "Go to GAS-ICS-Sync (unsafe)"
-*      - For steps to follow in authorization, see this video: https://youtu.be/_5k10maGtek?t=1m22s
-*      - To learn more about the permissions requested by the script visit https://github.com/derekantrican/GAS-ICS-Sync/wiki/Understanding-Permissions-in-GAS%E2%80%90ICS%E2%80%90Sync
+* 4) Authorize: You will be prompted to authorize the program and will need to click "Advanced" > "Go to GAS-Calendar-Sync (unsafe)"
 * 5) You can also run "startSync" if you want to sync only once (New Interface: change the dropdown to the right of "Debug" from "install" to "startSync")
 *
 * **To stop the Script from running click in the menu "Run" > "Run function" > "uninstall" (New Interface: change the dropdown to the right of "Debug" from "install" to "uninstall")
@@ -22,34 +20,34 @@
 *=========================================
 */
 
-var sourceCalendars = [                // The ics/ical urls that you want to get events from along with their target calendars (list a new row for each mapping of ICS url to Google Calendar)
-                                       // For instance: ["https://p24-calendars.icloud.com/holidays/us_en.ics", "US Holidays"]
-                                       // Or with colors following mapping https://developers.google.com/apps-script/reference/calendar/event-color,
-                                       // for instance: ["https://p24-calendars.icloud.com/holidays/us_en.ics", "US Holidays", "11"]
-  ["icsUrl1", "targetCalendar1"],
-  ["icsUrl2", "targetCalendar2"],
-  ["icsUrl3", "targetCalendar1"]
+var sourceCalendars = [                // The source Google Calendars you want to sync FROM, along with their target calendars
+                                       // Use the calendar ID (found in calendar settings) or the calendar name
+                                       // Format: ["sourceCalendarIdOrName", "targetCalendarName"]
+                                       // Or with colors: ["sourceCalendarIdOrName", "targetCalendarName", "colorId"]
+                                       // Color IDs: https://developers.google.com/apps-script/reference/calendar/event-color
+  ["source-calendar-id@group.calendar.google.com", "Target Calendar 1"],
+  ["Another Calendar", "Target Calendar 2"],
+  ["shared-calendar@gmail.com", "Target Calendar 1"]
 
 ];
 
 var howFrequent = 15;                     // What interval (minutes) to run this script on to check for new events.  Any integer can be used, but will be rounded up to 5, 10, 15, 30 or to the nearest hour after that.. 60, 120, etc. 1440 (24 hours) is the maximum value.  Anything above that will be replaced with 1440.
 var addEventsToCalendar = true;           // If you turn this to "false", you can check the log (View > Logs) to make sure your events are being read correctly before turning this on
-var modifyExistingEvents = true;          // If you turn this to "false", any event in the feed that was modified after being added to the calendar will not update
-var removeEventsFromCalendar = true;      // If you turn this to "true", any event created by the script that is not found in the feed will be removed.
+var modifyExistingEvents = true;          // If you turn this to "false", any event in the source calendar that was modified after being synced will not update
+var removeEventsFromCalendar = true;      // If you turn this to "true", any event created by the script that is not found in the source calendar will be removed.
 var removePastEventsFromCalendar = true;  // If you turn this to "false", any event that is in the past will not be removed.
-var addAlerts = "yes";                    // Whether to add the ics/ical alerts as notifications on the Google Calendar events or revert to the calendar's default reminders ("yes", "no", "default").
+var addAlerts = "yes";                    // Whether to copy alerts/reminders from source events ("yes", "no", "default").
 var addOrganizerToTitle = false;          // Whether to prefix the event name with the event organiser for further clarity
-var descriptionAsTitles = false;          // Whether to use the ics/ical descriptions as titles (true) or to use the normal titles as titles (false)
+var descriptionAsTitles = false;          // Whether to use event descriptions as titles (true) or to use the normal titles as titles (false)
 var addCalToTitle = false;                // Whether to add the source calendar to title
 var addAttendees = false;                 // Whether to add the attendee list. If true, duplicate events will be automatically added to the attendees' calendar.
 var defaultAllDayReminder = -1;           // Default reminder for all day events in minutes before the day of the event (-1 = no reminder, the value has to be between 0 and 40320)
                                           // See https://github.com/derekantrican/GAS-ICS-Sync/issues/75 for why this is neccessary.
-var overrideVisibility = "";              // Changes the visibility of the event ("default", "public", "private", "confidential"). Anything else will revert to the class value of the ICAL event.
-var addTasks = false;
+var overrideVisibility = "";              // Changes the visibility of the event ("default", "public", "private", "confidential"). Anything else will revert to the source event's visibility.
 
 var emailSummary = false;                 // Will email you when an event is added/modified/removed to your calendar
 var email = "";                           // OPTIONAL: If "emailSummary" is set to true or you want to receive update notifications, you will need to provide your email address
-var customEmailSubject = "";              // OPTIONAL: If you want to change the email subject, provide a custom one here. Default: "GAS-ICS-Sync Execution Summary"
+var customEmailSubject = "";              // OPTIONAL: If you want to change the email subject, provide a custom one here. Default: "GAS-Calendar-Sync Execution Summary"
 var dateFormat = "YYYY-MM-DD"             // date format in the email summary (e.g. "YYYY-MM-DD", "DD.MM.YYYY", "MM/DD/YYYY". separators are ".", "-" and "/")
 
 /*
@@ -117,12 +115,6 @@ function install() {
       .create();
   }
   ScriptApp.newTrigger("startSync").timeBased().after(1000).create();
-
-  // Schedule sync routine to look for update once per day using everyDays
-  ScriptApp.newTrigger("checkForUpdate")
-    .timeBased()
-    .everyDays(1)
-    .create();
 }
 
 function uninstall(){
@@ -132,7 +124,7 @@ function uninstall(){
 // Per-calendar global variables (must be reset before processing each new calendar!)
 var calendarEvents = [];
 var calendarEventsIds = [];
-var icsEventsIds = [];
+var sourceEventsIds = [];
 var calendarEventsMD5s = [];
 var recurringEvents = [];
 var targetCalendarId;
@@ -162,22 +154,22 @@ function startSync(){
     //------------------------ Reset globals ------------------------
     calendarEvents = [];
     calendarEventsIds = [];
-    icsEventsIds = [];
+    sourceEventsIds = [];
     calendarEventsMD5s = [];
     recurringEvents = [];
 
     targetCalendarName = calendar[0];
-    var sourceCalendarURLs = calendar[1];
-    var vevents;
+    var sourceCalendarConfigs = calendar[1];
+    var sourceEvents;
 
-    //------------------------ Fetch URL items ------------------------
-    var responses = fetchSourceCalendars(sourceCalendarURLs);
-    Logger.log("Syncing " + responses.length + " calendars to " + targetCalendarName);
+    //------------------------ Fetch source calendar events ------------------------
+    var fetchedEvents = fetchSourceCalendars(sourceCalendarConfigs);
+    Logger.log("Syncing " + fetchedEvents.length + " events from source calendars to " + targetCalendarName);
 
     //------------------------ Get target calendar information------------------------
     var targetCalendar = setupTargetCalendar(targetCalendarName);
     targetCalendarId = targetCalendar.id;
-    Logger.log("Working on calendar: " + targetCalendarId);
+    Logger.log("Working on target calendar: " + targetCalendarId);
 
     //------------------------ Parse existing events --------------------------
     if(addEventsToCalendar || modifyExistingEvents || removeEventsFromCalendar){
@@ -195,7 +187,7 @@ function startSync(){
         if (eventList != null)
           calendarEvents = [].concat(calendarEvents, eventList.items);
       }
-      Logger.log("Fetched " + calendarEvents.length + " existing events from " + targetCalendarName);
+      Logger.log("Fetched " + calendarEvents.length + " existing synced events from " + targetCalendarName);
       for (var i = 0; i < calendarEvents.length; i++){
         if (calendarEvents[i].extendedProperties != null){
           calendarEventsIds[i] = calendarEvents[i].extendedProperties.private["rec-id"] || calendarEvents[i].extendedProperties.private["id"];
@@ -203,24 +195,24 @@ function startSync(){
         }
       }
 
-      //------------------------ Parse ical events --------------------------
-      vevents = parseResponses(responses, icsEventsIds);
-      Logger.log("Parsed " + vevents.length + " events from ical sources");
+      //------------------------ Process source events --------------------------
+      sourceEvents = processSourceEvents(fetchedEvents);
+      Logger.log("Processed " + sourceEvents.length + " events from source calendars");
     }
 
-    //------------------------ Process ical events ------------------------
+    //------------------------ Sync events to target calendar ------------------------
     if (addEventsToCalendar || modifyExistingEvents){
-      Logger.log("Processing " + vevents.length + " events");
+      Logger.log("Syncing " + sourceEvents.length + " events");
       var calendarTz =
         callWithBackoff(function(){
           return Calendar.Settings.get("timezone").value;
         }, defaultMaxRetries);
 
-      vevents.forEach(function(e){
+      sourceEvents.forEach(function(e){
         processEvent(e, calendarTz);
       });
 
-      Logger.log("Done processing events");
+      Logger.log("Done syncing events");
     }
 
     //------------------------ Remove old events from calendar ------------------------
@@ -228,11 +220,6 @@ function startSync(){
       Logger.log("Checking " + calendarEvents.length + " events for removal");
       processEventCleanup();
       Logger.log("Done checking events for removal");
-    }
-
-    //------------------------ Process Tasks ------------------------
-    if (addTasks){
-      processTasks(responses);
     }
 
     //------------------------ Add Recurring Event Instances ------------------------
