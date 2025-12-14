@@ -42,52 +42,23 @@ var descriptionAsTitles = false;          // Whether to use event descriptions a
 var addCalToTitle = false;                // Whether to add the source calendar to title
 var addAttendees = false;                 // Whether to add the attendee list. If true, duplicate events will be automatically added to the attendees' calendar.
 var defaultAllDayReminder = -1;           // Default reminder for all day events in minutes before the day of the event (-1 = no reminder, the value has to be between 0 and 40320)
-                                          // See https://github.com/derekantrican/GAS-ICS-Sync/issues/75 for why this is neccessary.
 var overrideVisibility = "";              // Changes the visibility of the event ("default", "public", "private", "confidential"). Anything else will revert to the source event's visibility.
 
 var emailSummary = false;                 // Will email you when an event is added/modified/removed to your calendar
-var email = "";                           // OPTIONAL: If "emailSummary" is set to true or you want to receive update notifications, you will need to provide your email address
+var email = "";                           // OPTIONAL: If "emailSummary" is set to true, you will need to provide your email address
 var customEmailSubject = "";              // OPTIONAL: If you want to change the email subject, provide a custom one here. Default: "GAS-Calendar-Sync Execution Summary"
 var dateFormat = "YYYY-MM-DD"             // date format in the email summary (e.g. "YYYY-MM-DD", "DD.MM.YYYY", "MM/DD/YYYY". separators are ".", "-" and "/")
 
 /*
 *=========================================
-*           ABOUT THE AUTHOR
+*         ORIGINAL PROJECT INFO
 *=========================================
 *
-* This program was created by Derek Antrican
+* This is a fork of GAS-ICS-Sync by Derek Antrican, modified to sync
+* between Google Calendars instead of from ICS feeds.
 *
-* If you would like to see other programs Derek has made, you can check out
-* his website: derekantrican.com or his github: https://github.com/derekantrican
+* Original project: https://github.com/derekantrican/GAS-ICS-Sync
 *
-*=========================================
-*            BUGS/FEATURES
-*=========================================
-*
-* Please report any issues at https://github.com/derekantrican/GAS-ICS-Sync/issues
-*
-*=========================================
-*           $$ DONATIONS $$
-*=========================================
-*
-* If you would like to donate and support the project,
-* you can do that here: https://www.paypal.me/jonasg0b1011001
-*
-*=========================================
-*             CONTRIBUTORS
-*=========================================
-* Andrew Brothers
-* Github: https://github.com/agentd00nut
-* Twitter: @abrothers656
-*
-* Joel Balmer
-* Github: https://github.com/JoelBalmer
-*
-* Blackwind
-* Github: https://github.com/blackwind
-*
-* Jonas Geissler
-* Github: https://github.com/jonas0b1011001
 */
 
 
